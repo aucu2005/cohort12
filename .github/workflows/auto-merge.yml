@@ -1,20 +1,26 @@
-name: Auto merge PRs at 23:00 KST
+name: Force merge all PRs at 23:00 KST
 
 on:
   schedule:
-    - cron: "0 14 * * *" # UTC 14 = KST 23시
+    - cron: "0 14 * * *" # KST 23:00
   workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   merge:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Auto-merge pull requests
-        uses: pascalgn/automerge-action@v0.16.3
+      - uses: actions/checkout@v4
+
+      - name: Force merge all open PRs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MERGE_METHOD: squash
-          MERGE_LABELS: ""
-          MERGE_FILTER_AUTHOR: ""
-          MERGE_FORKS: true
-          MERGE_DELETE_BRANCH: false
+        run: |
+          prs=$(gh pr list --state open --json number --jq '.[].number')
+          for pr in $prs; do
+            echo "Merging PR #$pr"
+            gh pr merge $pr --squash --admin || echo "Failed PR #$pr, skipped"
+          done
